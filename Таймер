@@ -1,0 +1,48 @@
+--Серверний скрипт
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RoundTimerEvent = ReplicatedStorage:WaitForChild("RoundTimerEvent")
+
+local ROUND_DURATION = 30 -- тривалість раунду
+--Таймер
+while true do
+	task.wait(5) -- пауза між раундами
+	
+	-- 1. Рахуємо точний час фінішу за всесвітнім годинником
+	local currentTime = workspace:GetServerTime()
+	local endTime = currentTime + ROUND_DURATION
+	
+	-- 2. Відправляємо ВСІМ клієнтам саме ЧАС ФІНІШУ
+	RoundTimerEvent:FireAllClients(endTime)
+	
+	-- 3. Серверний невидимий таймер просто чекає ці 30 секунд
+	task.wait(ROUND_DURATION)
+	
+	print("🚨 Сервер: Час вийшов! Раунд офіційно закрито.")
+end
+--Локальний скрипт
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RoundTimerEvent = ReplicatedStorage:WaitForChild("RoundTimerEvent")
+local textLabel = script.Parent.TextLabel -- Твоє табло
+
+RoundTimerEvent.OnClientEvent:Connect(function(endTime)
+	
+	-- Запускаємо цикл, який працюватиме, поки поточний час не наздожене endTime
+	while true do
+		local currentTime = workspace:GetServerTime()
+		local timeLeft = endTime - currentTime -- Рахуємо, скільки секунд ЗАЛИШИЛОСЯ
+		
+		-- Якщо час вийшов або став мінусовим (через мікролаг) — зупиняємо таймер
+		if timeLeft <= 0 then
+			textLabel.Text = "0.0 сек"
+			break
+		end
+		
+		-- string.format("%.1f", ...) красиво округлює число до 1 знака після коми (наприклад, 28.4 сек)
+		textLabel.Text = "До кінця: " .. string.format("%.1f", timeLeft) .. " сек"
+		
+		-- Оновлюємо табло дуже часто (наприклад, кожні 0.1 сек), щоб бачити мілісекунди
+		task.wait(0.1) 
+	end
+	
+	textLabel.Text = "РАУНД ЗАКІНЧЕНО!"
+end)
