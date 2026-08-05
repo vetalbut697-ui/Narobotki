@@ -1,0 +1,56 @@
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
+local StarterGui = game:GetService("StarterGui")
+
+local player = Players.LocalPlayer
+local camera = Workspace.CurrentCamera
+
+-- Отримуємо точки камери
+local point1 = Workspace:WaitForChild("Point1")
+local point2 = Workspace:WaitForChild("Point2")
+
+-- Отримуємо наш плашку затемнення
+local playerGui = player:WaitForChild("PlayerGui")
+local screenGui = playerGui:WaitForChild("ScreenGui")
+local fadeFrame = screenGui:WaitForChild("FadeFrame")
+
+-- Налаштування часу
+local TWEEN_TIME = 4 -- Тривалість польоту камери (в секундах)
+local FADE_TIME = 1  -- Тривалість затемнення (в секундах)
+
+local tweenInfoCamera = TweenInfo.new(TWEEN_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+local tweenInfoFade = TweenInfo.new(FADE_TIME, Enum.EasingStyle.Linear)
+
+local function playCutscene()
+	-- 1. Перемикаємо камеру в ручний режим і ставимо в Point1
+	camera.CameraType = Enum.CameraType.Scriptable
+	camera.CFrame = point1.CFrame
+
+	-- 2. Плавна поява з чорного екрана (Fade In)
+	fadeFrame.BackgroundTransparency = 0 -- Спочатку робимо екран повністю чорним
+	local fadeIn = TweenService:Create(fadeFrame, tweenInfoFade, {BackgroundTransparency = 1})
+	fadeIn:Play()
+
+	-- 3. Запускаємо політ камери від Point1 до Point2
+	local cameraTween = TweenService:Create(camera, tweenInfoCamera, {CFrame = point2.CFrame})
+	cameraTween:Play()
+
+	-- Чекаємо, поки камера майже долетить (за 1 секунду до кінця)
+	task.wait(TWEEN_TIME - FADE_TIME)
+
+	-- 4. Затемнення в чорне перед закінченням (Fade Out)
+	local fadeOut = TweenService:Create(fadeFrame, tweenInfoFade, {BackgroundTransparency = 0})
+	fadeOut:Play()
+	fadeOut.Completed:Wait() -- Чекаємо завершення затемнення
+
+	-- 5. Повертаємо камеру гравцеві
+	camera.CameraType = Enum.CameraType.Custom
+	
+	-- 6. Проявляємо екран назад до гри
+	TweenService:Create(fadeFrame, tweenInfoFade, {BackgroundTransparency = 1}):Play()
+end
+
+-- Чекаємо завантаження персонажа перед запуском
+task.wait(2)
+playCutscene()
