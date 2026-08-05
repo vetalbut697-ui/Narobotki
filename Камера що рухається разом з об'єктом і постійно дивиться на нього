@@ -1,0 +1,15 @@
+local RunService = game:GetService("RunService")
+local camera = workspace.CurrentCamera
+local player = game.Players.LocalPlayer
+
+camera.CameraType = Enum.CameraType.Scriptable
+
+RunService.RenderStepped:Connect(function()
+	local character = player.Character
+	if character and character:FindFirstChild("HumanoidRootPart") then
+		local rootPos = character.HumanoidRootPart.Position
+		
+		-- Камера стоїть на зсуві (0, 5, 15) від гравця і дивиться строго вбік
+		camera.CFrame = CFrame.new(rootPos + Vector3.new(0, 5, 15), rootPos)
+	end
+end)
