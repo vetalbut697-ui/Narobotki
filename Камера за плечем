@@ -1,0 +1,55 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+-- Налаштування камери
+local OFFSET = Vector3.new(2, 1.5, 7) -- Зсув: (Вправо, Вгору, Назад від плеча)
+local SENSITIVITY = 0.3              -- Чутливість миші
+
+-- Кути огляду
+local yaw = 0   -- Поворот вліво/вправо
+local pitch = 0 -- Поворот вгору/вниз (обмежений)
+
+-- Фіксуємо мишку в центрі екрана
+UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+
+-- Зчитуємо рух мишки
+UserInputService.InputChanged:Connect(function(input, gameProcessed)
+	if input.UserInputType == Enum.UserInputType.MouseMovement then
+		-- Змінюємо кути відповідно до руху мишки
+		yaw = yaw - (input.Delta.X * SENSITIVITY)
+		pitch = math.clamp(pitch - (input.Delta.Y * SENSITIVITY), -60, 60)
+	end
+end)
+
+RunService.RenderStepped:Connect(function()
+	local character = player.Character
+	if not character then return end
+
+	local root = character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character:FindFirstChild("Humanoid")
+	if not root or not humanoid or humanoid.Health <= 0 then return end
+
+	-- 1. Вимикаємо стандартне авто-повертання Roblox
+	humanoid.AutoRotate = false
+
+	-- 2. Примусово вмикаємо Scriptable
+	camera.CameraType = Enum.CameraType.Scriptable
+
+	-- 3. Розвертаємо персонажа за горизонтальним кутом миші (yaw)
+	root.CFrame = CFrame.new(root.Position) * CFrame.Angles(0, math.rad(yaw), 0)
+
+	-- 4. Створюємо повний поворот камери (включаючи вертикальний нахил pitch)
+	local cameraRotation = CFrame.Angles(0, math.rad(yaw), 0) * CFrame.Angles(math.rad(pitch), 0, 0)
+
+	-- 5. Ставимо камеру у точці тулуба + зсув за плече
+	local cameraPosition = root.Position + (cameraRotation * OFFSET)
+
+	-- 6. Направляємо камеру у точку огляду попереду
+	local lookAtPoint = root.Position + (cameraRotation * Vector3.new(0, 1.5, -100))
+
+	camera.CFrame = CFrame.new(cameraPosition, lookAtPoint)
+end)
