@@ -6,20 +6,24 @@ local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
 -- Налаштування камери
-local OFFSET = Vector3.new(2, 1.5, 7) -- Зсув: (Вправо, Вгору, Назад від плеча)
-local SENSITIVITY = 0.3              -- Чутливість миші
+local TARGET_OFFSET = Vector3.new(2, 1.5, 7) -- Бажаний зсув (Вправо, Вгору, Назад)
+local SENSITIVITY = 0.3                      -- Чутливість миші
 
 -- Кути огляду
-local yaw = 0   -- Поворот вліво/вправо
-local pitch = 0 -- Поворот вгору/вниз (обмежений)
+local yaw = 0   
+local pitch = 0 
 
 -- Фіксуємо мишку в центрі екрана
 UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
 
+-- Налаштування Raycast (лазера)
+local raycastParams = RaycastParams.new()
+raycastParams.FilterType = Enum.RaycastFilterType.Exclude -- Ігнорувати об'єкти зі списку
+raycastParams.IgnoreWater = true
+
 -- Зчитуємо рух мишки
 UserInputService.InputChanged:Connect(function(input, gameProcessed)
 	if input.UserInputType == Enum.UserInputType.MouseMovement then
-		-- Змінюємо кути відповідно до руху мишки
 		yaw = yaw - (input.Delta.X * SENSITIVITY)
 		pitch = math.clamp(pitch - (input.Delta.Y * SENSITIVITY), -60, 60)
 	end
@@ -30,26 +34,42 @@ RunService.RenderStepped:Connect(function()
 	if not character then return end
 
 	local root = character:FindFirstChild("HumanoidRootPart")
+	local head = character:FindFirstChild("Head")
 	local humanoid = character:FindFirstChild("Humanoid")
-	if not root or not humanoid or humanoid.Health <= 0 then return end
+	if not root or not head or not humanoid or humanoid.Health <= 0 then return end
 
-	-- 1. Вимикаємо стандартне авто-повертання Roblox
+	-- 1. Налаштовуємо персонажа та камеру
 	humanoid.AutoRotate = false
-
-	-- 2. Примусово вмикаємо Scriptable
 	camera.CameraType = Enum.CameraType.Scriptable
 
-	-- 3. Розвертаємо персонажа за горизонтальним кутом миші (yaw)
+	-- 2. Оновлюємо список об'єктів, які лазер має ІГНОРУВАТИ (сам персонаж)
+	raycastParams.FilterDescendantsInstances = {character}
+
+	-- 3. Розвертаємо персонажа за мишкою
 	root.CFrame = CFrame.new(root.Position) * CFrame.Angles(0, math.rad(yaw), 0)
 
-	-- 4. Створюємо повний поворот камери (включаючи вертикальний нахил pitch)
+	-- 4. Обчислюємо поворот камери
 	local cameraRotation = CFrame.Angles(0, math.rad(yaw), 0) * CFrame.Angles(math.rad(pitch), 0, 0)
 
-	-- 5. Ставимо камеру у точці тулуба + зсув за плече
-	local cameraPosition = root.Position + (cameraRotation * OFFSET)
+	-- 5. Базова точка вильоту лазера (голова) та ідеальна точка камери в повітрі
+	local rayStart = head.Position
+	local idealCameraPosition = root.Position + (cameraRotation * TARGET_OFFSET)
 
-	-- 6. Направляємо камеру у точку огляду попереду
+	-- 6. Вектор напрямку лазера (від голови до ідеальної позиції камери)
+	local rayDirection = idealCameraPosition - rayStart
+
+	-- 7. ПУСКАЄМО ЛАЗЕР!
+	local raycastResult = workspace:Raycast(rayStart, rayDirection, raycastParams)
+
+	local finalCameraPosition = idealCameraPosition
+
+	if raycastResult then
+		-- Якщо лазер перетнув стіну/блок:
+		-- Ставимо камеру в точку влучання, але зсуваємо її на 0.5 блоку ВІД стіни (по нормалі)
+		finalCameraPosition = raycastResult.Position + (raycastResult.Normal * 0.5)
+	end
+
+	-- 8. Фінальна установка камери
 	local lookAtPoint = root.Position + (cameraRotation * Vector3.new(0, 1.5, -100))
-
-	camera.CFrame = CFrame.new(cameraPosition, lookAtPoint)
+	camera.CFrame = CFrame.new(finalCameraPosition, lookAtPoint)
 end)
