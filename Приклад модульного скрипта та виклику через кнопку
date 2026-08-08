@@ -1,0 +1,66 @@
+-- ReplicatedStorage -> CameraController (ModuleScript)
+local CameraController = {}
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+
+local camera = Workspace.CurrentCamera
+local player = Players.LocalPlayer
+
+-- Збережемо поточний режим
+CameraController.CurrentMode = "Default"
+
+-- Функція для перемикання режимів камери
+function CameraController.SetMode(modeName, targetPart)
+	CameraController.CurrentMode = modeName
+	
+	if modeName == "Default" then
+		-- Повертаємо стандартну камеру Roblox
+		camera.CameraType = Enum.CameraType.Custom
+		local character = player.Character
+		if character then
+			local humanoid = character:FindFirstChildOfClass("Humanoid")
+			if humanoid then
+				camera.CameraSubject = humanoid
+			end
+		end
+		
+	elseif modeName == "TopDown" then
+		-- Вигляд зверху (Lock)
+		camera.CameraType = Enum.CameraType.Scriptable
+		local character = player.Character
+		if character and character:FindFirstChild("HumanoidRootPart") then
+			local hrp = character.HumanoidRootPart
+			camera.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 25, 0), hrp.Position)
+		end
+		
+	elseif modeName == "InspectPart" and targetPart then
+		-- Камера, що дивиться на конкретний об'єкт
+		camera.CameraType = Enum.CameraType.Scriptable
+		camera.CFrame = CFrame.new(targetPart.Position + Vector3.new(0, 5, 10), targetPart.Position)
+	end
+end
+
+return CameraController
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- StarterGui -> ScreenGui -> ChangeCameraButton -> LocalScript
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local button = script.Parent
+
+-- Підключаємо наш модуль камери
+local CameraController = require(ReplicatedStorage:WaitForChild("CameraController"))
+
+-- Прапорець для перемикання станів
+local isTopDown = false
+
+button.MouseButton1Click:Connect(function()
+	isTopDown = not isTopDown
+
+	if isTopDown then
+		CameraController.SetMode("Back")
+		button.Text = "Режим: Згори"
+	else
+		CameraController.SetMode("Default")
+		button.Text = "Режим: Звичайний"
+	end
+end)
